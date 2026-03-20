@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>BaashaBhai Security</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+    <script src="main.js"></script>
+</head>
+<body>
+
+    <!-- Full-screen dim backdrop -->
+    <div id="backdrop"></div>
+
+    <!-- ── Door Selection HUD (rendered over game world during pointing) ───── -->
+    <div id="door-select-hud" class="hidden">
+        <div id="dsh-step">STEP 1 OF 2</div>
+        <div id="dsh-instruction">AIM AT DOOR 1 — PRESS [E]</div>
+        <div id="dsh-crosshair">⊕</div>
+        <div id="dsh-hint">Point at the door prop and press [E] to select it</div>
+    </div>
+
+    <!-- ── Door Manager Overlay ───────────────────────────────────────── -->
+    <div id="mgr-overlay" class="hidden">
+        <div id="mgr-panel">
+            <div class="corner tl"></div><div class="corner tr"></div>
+            <div class="corner bl"></div><div class="corner br"></div>
+
+            <div id="mgr-header">
+                <div id="brand-block">
+                    <div id="brand-logo">⬡</div>
+                    <div id="brand-text">
+                        <span id="brand-name">BAASHABHAI</span>
+                        <span id="brand-sub">DOOR MANAGER</span>
+                    </div>
+                </div>
+                <button id="mgr-close-btn">✕ CLOSE</button>
+            </div>
+
+            <!-- List view -->
+            <div id="mgr-list-view">
+                <div id="mgr-empty" class="hidden">NO DOORS CONFIGURED YET</div>
+                <div id="mgr-door-list"></div>
+                <button id="mgr-add-btn">+ ADD DOOR AT MY POSITION</button>
+            </div>
+
+            <!-- Add / Edit form view -->
+            <div id="mgr-form-view" class="hidden">
+                <div id="f-form-title" class="form-section-title">ADD NEW DOOR</div>
+                <div id="detect-bar">
+                    <span id="detect-icon">○</span>
+                    <span id="detect-text">SCANNING FOR NEARBY PROP...</span>
+                    <button id="detect-btn">RESCAN</button>
+                </div>
+                <div id="detect-coords">—</div>
+                <div class="fgrp">
+                    <label>DOOR NAME</label>
+                    <input type="text" id="f-name" placeholder="e.g. Garage Side Door" maxlength="50">
+                </div>
+                <div class="fgrp">
+                    <label>LOCK TYPE</label>
+                    <select id="f-locktype">
+                        <option value="pin">PIN Code</option>
+                        <option value="job">Job Only</option>
+                        <option value="pin_or_job">PIN or Job</option>
+                        <option value="item">Item / Keycard</option>
+                        <option value="any">Any (Job → Item → PIN)</option>
+                    </select>
+                </div>
+                <div class="fgrp" id="fgrp-codes">
+                    <label>PIN CODES <span class="f-hint">(comma separated)</span></label>
+                    <input type="text" id="f-codes" placeholder="1234, 5678">
+                </div>
+                <div class="fgrp hidden" id="fgrp-jobs">
+                    <label>AUTHORIZED JOBS <span class="f-hint">(jobname:grade — e.g. police:0)</span></label>
+                    <input type="text" id="f-jobs" placeholder="police:0, ambulance:2">
+                </div>
+                <div class="fgrp hidden" id="fgrp-items">
+                    <label>AUTHORIZED ITEMS <span class="f-hint">(comma separated)</span></label>
+                    <input type="text" id="f-items" placeholder="keycard_police, master_key">
+                </div>
+                <div class="fgrp">
+                    <label>INTERACT DISTANCE (metres)</label>
+                    <input type="number" id="f-dist" value="1.5" min="0.5" max="10" step="0.5">
+                </div>
+                <div class="fgrp" id="fgrp-double-opt">
+                    <label class="check-row">
+                        <input type="checkbox" id="f-double">
+                        <span>DOUBLE DOOR — link a second prop</span>
+                    </label>
+                </div>
+
+                <!-- Double door: pointer select section -->
+                <div id="fgrp-doorb" class="hidden">
+                    <button id="door-select-btn" type="button">⊕  POINT &amp; SELECT BOTH DOORS</button>
+                    <div id="door-select-hint">Menu closes — aim at each door and press [E]</div>
+                    <div id="door-select-results" class="hidden">
+                        <div class="door-select-result">
+                            <span class="dsr-label">DOOR A</span>
+                            <span class="dsr-status" id="dsr-a-status">—</span>
+                            <span class="dsr-coords" id="dsr-a-coords"></span>
+                        </div>
+                        <div class="door-select-result">
+                            <span class="dsr-label">DOOR B</span>
+                            <span class="dsr-status" id="dsr-b-status">—</span>
+                            <span class="dsr-coords" id="dsr-b-coords"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mgr-form-btns">
+                    <button id="f-cancel-btn">CANCEL</button>
+                    <button id="f-save-btn">SAVE DOOR</button>
+                </div>
+            </div>
+
+            <div id="mgr-scanlines"></div>
+        </div>
+    </div>
+
+    <!-- Security panel -->
+    <div id="panel" class="hidden">
+
+        <!-- Animated corner brackets -->
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+
+        <!-- Header -->
+        <div id="header">
+            <div id="brand-block">
+                <div id="brand-logo">⬡</div>
+                <div id="brand-text">
+                    <span id="brand-name">BAASHABHAI</span>
+                    <span id="brand-sub">SECURITY SYSTEMS</span>
+                </div>
+            </div>
+            <div id="status-block">
+                <div id="status-dot"></div>
+                <span id="status-label">LOCKED</span>
+            </div>
+        </div>
+
+        <!-- Door name -->
+        <div id="door-name">─ ACCESS POINT ─</div>
+
+        <!-- PIN display -->
+        <div id="pin-wrap">
+            <div id="pin-screen">
+                <div id="pin-dots-row"></div>
+            </div>
+            <div id="pin-hint">ENTER ACCESS CODE</div>
+        </div>
+
+        <!-- Numpad -->
+        <div id="numpad">
+            <button class="key" data-n="1">1</button>
+            <button class="key" data-n="2">2</button>
+            <button class="key" data-n="3">3</button>
+            <button class="key" data-n="4">4</button>
+            <button class="key" data-n="5">5</button>
+            <button class="key" data-n="6">6</button>
+            <button class="key" data-n="7">7</button>
+            <button class="key" data-n="8">8</button>
+            <button class="key" data-n="9">9</button>
+            <button class="key key-del"   data-n="del">⌫</button>
+            <button class="key"           data-n="0">0</button>
+            <button class="key key-ok"    data-n="ok">✓</button>
+        </div>
+
+        <!-- Cancel -->
+        <button id="btn-cancel">✕  CANCEL</button>
+
+        <!-- Status message (GRANTED / DENIED) -->
+        <div id="msg-overlay" class="hidden">
+            <div id="msg-icon"></div>
+            <div id="msg-text"></div>
+        </div>
+
+        <!-- Scanlines -->
+        <div id="scanlines"></div>
+
+    </div>
+
+</body>
+</html>
