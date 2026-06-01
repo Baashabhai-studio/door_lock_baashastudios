@@ -24,12 +24,26 @@ end
 local function ApplyDoorState(door, locked)
     local hash = door.objHash or (door.objName ~= nil and door.objName ~= '' and GetHashKey(door.objName) or 0)
     if hash == 0 then return end
-    local obj = GetClosestObjectOfType(
+
+    -- pcall prevents the native crash that occurs when the hash belongs to a
+    -- GTA map/interior door (not a streamed prop) — native 9f47b058362c84b5
+    local ok, obj = pcall(GetClosestObjectOfType,
         door.objCoords.x, door.objCoords.y, door.objCoords.z,
         5.0, hash, false, false, false
     )
-    if obj == 0 then return end
-    FreezeEntityPosition(obj, locked)
+
+    if ok and obj and obj ~= 0 then
+        -- Regular streamed prop: freeze/unfreeze in place
+        FreezeEntityPosition(obj, locked)
+        return
+    end
+
+    -- Fallback: GTA map door system — works on world/interior doors that are
+    -- not individual streamed entities (shop doors, bank vaults, etc.)
+    SetStateOfClosestDoorOfType(hash,
+        door.objCoords.x, door.objCoords.y, door.objCoords.z,
+        locked, door.heading or 0.0
+    )
 end
 
 -- ── Build door list for manager UI ────────────────────────────────────────
