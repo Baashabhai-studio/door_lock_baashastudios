@@ -23,6 +23,7 @@ local function InitStates()
             `heading`          FLOAT NOT NULL DEFAULT 0.0,
             `distance`         FLOAT NOT NULL DEFAULT 1.5,
             `lock_type`        VARCHAR(20) NOT NULL DEFAULT 'pin',
+            `move_type`        VARCHAR(10) NOT NULL DEFAULT 'normal',
             `codes`            TEXT,
             `authorized_jobs`  TEXT,
             `authorized_items` TEXT,
@@ -35,6 +36,7 @@ local function InitStates()
     MySQL.query([[ALTER TABLE door_lock_custom ADD COLUMN IF NOT EXISTS authorized_jobs  TEXT]])
     MySQL.query([[ALTER TABLE door_lock_custom ADD COLUMN IF NOT EXISTS authorized_items TEXT]])
     MySQL.query([[ALTER TABLE door_lock_custom ADD COLUMN IF NOT EXISTS group_id         INT NULL]])
+    MySQL.query([[ALTER TABLE door_lock_custom ADD COLUMN IF NOT EXISTS move_type        VARCHAR(10) NOT NULL DEFAULT 'normal']])
 
     MySQL.query([[
         CREATE TABLE IF NOT EXISTS `door_lock_baashastudios` (
@@ -79,6 +81,7 @@ local function LoadAndBroadcastCustomDoors()
                 distance        = row.distance,
                 locked          = row.is_locked == 1,
                 lockType        = row.lock_type,
+                moveType        = row.move_type or 'normal',
                 codes           = row.codes           and json.decode(row.codes)           or {},
                 authorizedJobs  = row.authorized_jobs  and json.decode(row.authorized_jobs)  or nil,
                 authorizedItems = row.authorized_items and json.decode(row.authorized_items) or nil,
@@ -97,9 +100,11 @@ local function LoadAndBroadcastCustomDoors()
                 heading         = row.heading,
                 distance        = row.distance,
                 lockType        = row.lock_type,
+                moveType        = row.move_type or 'normal',
                 codes           = row.codes           and json.decode(row.codes)           or {},
                 authorizedJobs  = row.authorized_jobs  and json.decode(row.authorized_jobs)  or nil,
                 authorizedItems = row.authorized_items and json.decode(row.authorized_items) or nil,
+                groupId         = row.group_id,
                 isLocked        = row.is_locked == 1,
             })
         end
@@ -275,12 +280,13 @@ RegisterNetEvent('doorlock:manager:addDoor', function(data)
     local codes          = (type(data.codes)          == 'table') and json.encode(data.codes)          or '[]'
     local authJobs       = (type(data.authorizedJobs)  == 'table' and #data.authorizedJobs  > 0) and json.encode(data.authorizedJobs)  or nil
     local authItems      = (type(data.authorizedItems) == 'table' and #data.authorizedItems > 0) and json.encode(data.authorizedItems) or nil
+    local moveType       = (data.moveType == 'slide') and 'slide' or 'normal'
 
     -- Insert door A
     MySQL.insert(
-        'INSERT INTO door_lock_custom (name,obj_hash,coords_x,coords_y,coords_z,heading,distance,lock_type,codes,authorized_jobs,authorized_items) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+        'INSERT INTO door_lock_custom (name,obj_hash,coords_x,coords_y,coords_z,heading,distance,lock_type,move_type,codes,authorized_jobs,authorized_items) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
         { data.name, data.objHash or 0, data.x or 0, data.y or 0, data.z or 0,
-          data.heading or 0, data.distance or 1.5, data.lockType or 'pin', codes, authJobs, authItems },
+          data.heading or 0, data.distance or 1.5, data.lockType or 'pin', moveType, codes, authJobs, authItems },
         function(idA)
             if not idA then return end
             if type(data.doorB) == 'table' then
@@ -288,9 +294,9 @@ RegisterNetEvent('doorlock:manager:addDoor', function(data)
                 MySQL.update('UPDATE door_lock_custom SET group_id = ? WHERE id = ?', { idA, idA })
                 local b = data.doorB
                 MySQL.insert(
-                    'INSERT INTO door_lock_custom (name,obj_hash,coords_x,coords_y,coords_z,heading,distance,lock_type,codes,authorized_jobs,authorized_items,group_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+                    'INSERT INTO door_lock_custom (name,obj_hash,coords_x,coords_y,coords_z,heading,distance,lock_type,move_type,codes,authorized_jobs,authorized_items,group_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
                     { data.name .. ' B', b.hash or 0, b.x or 0, b.y or 0, b.z or 0,
-                      b.heading or 0, data.distance or 1.5, data.lockType or 'pin', codes, authJobs, authItems, idA },
+                      b.heading or 0, data.distance or 1.5, data.lockType or 'pin', moveType, codes, authJobs, authItems, idA },
                     function()
                         LoadAndBroadcastCustomDoors()
                         print(('[^2door_lock_baashastudios^7] Admin %d added double door: %s'):format(src, data.name))
@@ -317,10 +323,11 @@ RegisterNetEvent('doorlock:manager:editDoor', function(data)
     local codes     = (type(data.codes)          == 'table') and json.encode(data.codes)          or '[]'
     local authJobs  = (type(data.authorizedJobs)  == 'table' and #data.authorizedJobs  > 0) and json.encode(data.authorizedJobs)  or nil
     local authItems = (type(data.authorizedItems) == 'table' and #data.authorizedItems > 0) and json.encode(data.authorizedItems) or nil
+    local moveType  = (data.moveType == 'slide') and 'slide' or 'normal'
 
     MySQL.update(
-        'UPDATE door_lock_custom SET name=?, lock_type=?, codes=?, authorized_jobs=?, authorized_items=?, distance=? WHERE id=?',
-        { data.name, data.lockType or 'pin', codes, authJobs, authItems, data.distance or 1.5, customId },
+        'UPDATE door_lock_custom SET name=?, lock_type=?, move_type=?, codes=?, authorized_jobs=?, authorized_items=?, distance=? WHERE id=?',
+        { data.name, data.lockType or 'pin', moveType, codes, authJobs, authItems, data.distance or 1.5, customId },
         function()
             LoadAndBroadcastCustomDoors()
             print(('[^2door_lock_baashastudios^7] Admin %d edited door id: %d'):format(src, customId))
@@ -337,7 +344,8 @@ RegisterNetEvent('doorlock:manager:deleteDoor', function(customId)
     end
     customId = tonumber(customId)
     if not customId then return end
-    MySQL.query('DELETE FROM door_lock_custom WHERE id = ?', { customId }, function()
+    -- Delete the door AND any paired doors in the same group (double doors)
+    MySQL.query('DELETE FROM door_lock_custom WHERE id = ? OR group_id = ?', { customId, customId }, function()
         LoadAndBroadcastCustomDoors()
         print(('[^2door_lock_baashastudios^7] Admin %d deleted custom door id: %d'):format(src, customId))
     end)

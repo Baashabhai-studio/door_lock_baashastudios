@@ -47,6 +47,7 @@
             <!-- Add / Edit form view -->
             <div id="mgr-form-view" class="hidden">
                 <div id="f-form-title" class="form-section-title">ADD NEW DOOR</div>
+                <div id="detect-warning">⚠ MAKE SURE THE DOOR IS IN ITS CLOSED POSITION BEFORE SCANNING</div>
                 <div id="detect-bar">
                     <span id="detect-icon">○</span>
                     <span id="detect-text">SCANNING FOR NEARBY PROP...</span>
@@ -56,6 +57,13 @@
                 <div class="fgrp">
                     <label>DOOR NAME</label>
                     <input type="text" id="f-name" placeholder="e.g. Garage Side Door" maxlength="50">
+                </div>
+                <div class="fgrp">
+                    <label>DOOR MOVEMENT TYPE</label>
+                    <select id="f-movetype">
+                        <option value="normal">Normal (swing / freeze)</option>
+                        <option value="slide">Slide / Auto-door (GTA door system)</option>
+                    </select>
                 </div>
                 <div class="fgrp">
                     <label>LOCK TYPE</label>
@@ -80,8 +88,8 @@
                     <input type="text" id="f-items" placeholder="keycard_police, master_key">
                 </div>
                 <div class="fgrp">
-                    <label>INTERACT DISTANCE (metres)</label>
-                    <input type="number" id="f-dist" value="1.5" min="0.5" max="10" step="0.5">
+                    <label>INTERACT DISTANCE (metres) <span class="f-hint">— both sides from door centre</span></label>
+                    <input type="number" id="f-dist" value="6.0" min="0.5" max="20" step="0.5">
                 </div>
                 <div class="fgrp" id="fgrp-double-opt">
                     <label class="check-row">

@@ -121,6 +121,7 @@ function showMgrForm(editDoor) {
 
     // Pre-fill fields
     $('#f-name').val(editDoor ? editDoor.name : '');
+    $('#f-movetype').val(editDoor ? (editDoor.moveType || 'normal') : 'normal');
     $('#f-locktype').val(editDoor ? (editDoor.lockType || 'pin') : 'pin');
     $('#f-codes').val(
         editDoor && editDoor.codes && editDoor.codes.length
@@ -222,6 +223,7 @@ function renderDoorList() {
         var d = list[i];
         var stateClass = d.locked ? 'locked' : 'unlocked';
         var stateText  = d.locked ? 'LOCKED' : 'OPEN';
+        var doubleBadge = d.isDouble ? '<span class="mgr-row-double">2x</span>' : '';
         var actionHtml = d.isCustom
             ? '<button class="mgr-row-edit" data-idx="' + d.index + '">EDIT</button>' +
               '<button class="mgr-row-del"  data-cid="' + d.customId + '">DEL</button>'
@@ -229,7 +231,7 @@ function renderDoorList() {
         html +=
             '<div class="mgr-row">' +
             '<span class="mgr-row-idx">#' + d.index + '</span>' +
-            '<span class="mgr-row-name">' + d.name + '</span>' +
+            '<span class="mgr-row-name">' + d.name + doubleBadge + '</span>' +
             '<span class="mgr-row-type">' + d.lockType.toUpperCase() + '</span>' +
             '<span class="mgr-row-state ' + stateClass + '">' + stateText + '</span>' +
             actionHtml +
@@ -256,6 +258,7 @@ function saveDoor() {
     var name = $('#f-name').val().trim();
     if (!name) { $('#f-name').focus(); return; }
 
+    var moveType        = $('#f-movetype').val();
     var lockType        = $('#f-locktype').val();
     var codes           = parseCSV($('#f-codes').val());
     var authorizedJobs  = parseJobs($('#f-jobs').val());
@@ -266,6 +269,7 @@ function saveDoor() {
         $.post('https://' + _res + '/manager:editDoor', JSON.stringify({
             customId:        editingCustomId,
             name:            name,
+            moveType:        moveType,
             lockType:        lockType,
             codes:           codes,
             authorizedJobs:  authorizedJobs,
@@ -301,6 +305,7 @@ function saveDoor() {
         z:               detectDataA.z,
         heading:         detectDataA.heading,
         distance:        distance,
+        moveType:        moveType,
         lockType:        lockType,
         codes:           codes,
         authorizedJobs:  authorizedJobs,

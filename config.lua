@@ -7,7 +7,7 @@ Config.Framework = 'qbcore'
 
 -- ── General settings ──────────────────────────────────────────────────────
 Config.InteractKey    = 38       -- GTA key: E
-Config.DrawDistance   = 3.5      -- metres — show label when within this range
+Config.DrawDistance   = 3.5      -- metres — fallback label range for config.lua doors (custom doors use per-door distance)
 Config.MaxPinLength   = 6        -- max digits a PIN can be
 Config.PinAttempts    = 3        -- wrong attempts before lockout
 Config.LockoutTime    = 60       -- seconds the panel is blocked after too many failures
